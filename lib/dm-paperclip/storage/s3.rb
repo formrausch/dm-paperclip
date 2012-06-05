@@ -102,13 +102,13 @@ module Paperclip
         unless s3_detected
           raise(LoadError,"unable to load any S3 library (#{LIBRARIES.keys.join(', ')})",caller)
         end
-        
+ 
         base.instance_eval do
           @s3_credentials = parse_credentials(@options[:s3_credentials])
           @bucket         = @options[:bucket]         || @s3_credentials[:bucket]
           @bucket         = @bucket.call(self) if @bucket.is_a?(Proc)
-          @s3_host        = @options[:s3_host]        || "s3.amazonaws.com"   
           @s3_options     = @options[:s3_options]     || {}
+          @s3_host        = @s3_options[:server]        || "s3.amazonaws.com"             
           @s3_permissions = @options[:s3_permissions] || :public_read
           @s3_protocol    = @options[:s3_protocol]    || (@s3_permissions == :public_read ? 'http' : 'https')
           @s3_headers     = @options[:s3_headers]     || {}
@@ -117,11 +117,10 @@ module Paperclip
             @path          = @path.gsub(/:url/, @url)
             @url           = ":s3_path_url"
           end
-  
-          ::AWS::S3::DEFAULT_HOST.replace = @s3_host
-        
+
           s3_connect!
         end
+
         Paperclip.interpolates(:s3_alias_url) do |attachment, style|
           "#{attachment.s3_protocol}://#{attachment.s3_host_alias}/#{attachment.path(style).gsub(%r{^/}, "")}"
         end unless Paperclip::Interpolations.respond_to? :s3_alias_url
@@ -137,6 +136,10 @@ module Paperclip
         s3_expiring_url(path, time)
       end
 
+      def s3_host
+        @s3_host
+      end
+      
       def bucket_name
         @bucket
       end

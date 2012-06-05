@@ -118,7 +118,7 @@ module Paperclip
             @url           = ":s3_path_url"
           end
   
-          ::AWS::S3::DEFAULT_HOST = @s3_host
+          ::AWS::S3::DEFAULT_HOST.replace = @s3_host
         
           s3_connect!
         end

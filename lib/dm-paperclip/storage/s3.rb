@@ -81,18 +81,18 @@ module Paperclip
     module S3
       # Libraries and mixins that provide S3 support
       LIBRARIES = {
-        'aws/s3' => AwsS3Library,
-        'right_aws' => AwsLibrary,
-        'aws' => AwsLibrary
+        'aws/s3' => AwsS3Library
       }
 
       def self.extended(base)
         # attempt to load one of the S3 libraries
+
         s3_detected = LIBRARIES.any? do |path,mixin|
           begin
             require path
 
             base.send :extend, mixin
+
             true
           rescue LoadError => e
             false
@@ -102,11 +102,12 @@ module Paperclip
         unless s3_detected
           raise(LoadError,"unable to load any S3 library (#{LIBRARIES.keys.join(', ')})",caller)
         end
-
+        
         base.instance_eval do
           @s3_credentials = parse_credentials(@options[:s3_credentials])
           @bucket         = @options[:bucket]         || @s3_credentials[:bucket]
           @bucket         = @bucket.call(self) if @bucket.is_a?(Proc)
+          @s3_host        = @options[:s3_host]        || "s3.amazonaws.com"   
           @s3_options     = @options[:s3_options]     || {}
           @s3_permissions = @options[:s3_permissions] || :public_read
           @s3_protocol    = @options[:s3_protocol]    || (@s3_permissions == :public_read ? 'http' : 'https')
@@ -116,17 +117,19 @@ module Paperclip
             @path          = @path.gsub(/:url/, @url)
             @url           = ":s3_path_url"
           end
-
+  
+          ::AWS::S3::DEFAULT_HOST = @s3_host
+        
           s3_connect!
         end
         Paperclip.interpolates(:s3_alias_url) do |attachment, style|
           "#{attachment.s3_protocol}://#{attachment.s3_host_alias}/#{attachment.path(style).gsub(%r{^/}, "")}"
         end unless Paperclip::Interpolations.respond_to? :s3_alias_url
         Paperclip.interpolates(:s3_path_url) do |attachment, style|
-          "#{attachment.s3_protocol}://s3.amazonaws.com/#{attachment.bucket_name}/#{attachment.path(style).gsub(%r{^/}, "")}"
+          "#{attachment.s3_protocol}://#{attachment.s3_host}/#{attachment.bucket_name}/#{attachment.path(style).gsub(%r{^/}, "")}"
         end unless Paperclip::Interpolations.respond_to? :s3_path_url
         Paperclip.interpolates(:s3_domain_url) do |attachment, style|
-          "#{attachment.s3_protocol}://#{attachment.bucket_name}.s3.amazonaws.com/#{attachment.path(style).gsub(%r{^/}, "")}"
+          "#{attachment.s3_protocol}://#{attachment.bucket_name}.#{attachment.s3_host}/#{attachment.path(style).gsub(%r{^/}, "")}"
         end unless Paperclip::Interpolations.respond_to? :s3_domain_url
       end
 
